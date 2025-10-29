@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Private Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f2f2f2;
+      display: flex;
+      height: 100vh;
+    }
+
+    #sidebar {
+      width: 25%;
+      background: #fff;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    #user-list button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #user-list button:hover {
+      background: #0056b3;
+    }
+
+    #chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #e9ecef;
+    }
+
+    #chat-header {
+      background: #007bff;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    #chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      margin: 8px 0;
+      padding: 10px 15px;
+      border-radius: 12px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+
+    .sent {
+      align-self: flex-end;
+      background: #007bff;
+      color: white;
+    }
+
+    .received {
+      align-self: flex-start;
+      background: #d6d8db;
+      color: #333;
+    }
+
+    #input-area {
+      display: flex;
+      border-top: 1px solid #ccc;
+      background: white;
+      padding: 10px;
+    }
+
+    #messageInput {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    #sendBtn {
+      margin-left: 10px;
+      padding: 10px 20px;
+      background: #007bff;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h3>Welcome, <span id="username-display"></span></h3>
+    <div id="user-list"></div>
+  </div>
+
+  <div id="chat-container">
+    <div id="chat-header">Select a user to chat</div>
+    <div id="chat-box"></div>
+    <div id="input-area">
+      <input id="messageInput" type="text" placeholder="Type your message..." />
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    let ws;
+    let currentUser = localStorage.getItem("username");
+    let selectedUser = null;
+
+    document.getElementById("username-display").innerText = currentUser || "Guest";
+
+    async function loadUsers() {
+      const res = await fetch("http://127.0.0.1:8000/auth/users");
+      const users = await res.json();
+
+      const listDiv = document.getElementById("user-list");
+      listDiv.innerHTML = "<h4>Users:</h4>";
+
+      users.forEach(u => {
+        // Adjust if your backend returns user objects
+        const username = u.username || u;
+        if (username !== currentUser) {
+          const btn = document.createElement("button");
+          btn.textContent = username;
+          btn.onclick = () => startChat(username);
+          listDiv.appendChild(btn);
+        }
+      });
+    }
+
+    async function startChat(user) {
+      selectedUser = user;
+      document.getElementById("chat-header").innerText = `Chat with ${user}`;
+      document.getElementById("chat-box").innerHTML = "";
+
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+
+      const res = await fetch(`http://127.0.0.1:8000/chat/messages/${currentUser}/${selectedUser}`);
+      const history = await res.json();
+      history.forEach(m => showMessage(m.sender, m.message));
+
+      ws = new WebSocket(`ws://127.0.0.1:8000/chat/ws/${currentUser}/${selectedUser}`);
+
+      ws.onopen = () => console.log("✅ Connected to chat with", selectedUser);
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        showMessage(data.sender, data.message);
+      };
+      ws.onclose = () => console.log("❌ Disconnected");
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const msg = input.value.trim();
+      if (!msg || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      ws.send(JSON.stringify({
+        sender: currentUser,
+        receiver: selectedUser,
+        message: msg
+      }));
+
+      input.value = "";
+    }
+
+    function showMessage(sender, msg) {
+      const chatBox = document.getElementById("chat-box");
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.classList.add(sender === currentUser ? "sent" : "received");
+      div.textContent = `${sender}: ${msg}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    window.addEventListener("DOMContentLoaded", loadUsers);
+  </script>
+</body>
+</html>

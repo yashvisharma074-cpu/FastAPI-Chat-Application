@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Register — FastAPI Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#0f172a;--bg2:#0ea5a0;--card:rgba(255,255,255,0.06);--accent:#7c3aed;--muted:rgba(255,255,255,0.75);--radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui;background:linear-gradient(135deg,var(--bg1) 0%,#081126 45%,#032f2e 100%);color:#fff;padding:32px}
+    .wrap{max-width:900px;width:100%;display:grid;grid-template-columns:1fr 420px;gap:36px;align-items:center}
+    .hero{padding:36px;border-radius:var(--radius);background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+    .brand h1{margin:0;font-size:20px}
+    .brand p{margin:0;color:var(--muted);font-size:14px}
+    .hero h2{margin-top:20px;margin-bottom:8px;font-size:28px}
+    .hero p.lead{color:var(--muted);margin:0 0 18px 0}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.02));border-radius:var(--radius);padding:28px;width:100%;box-shadow:0 8px 30px rgba(2,6,23,0.5)}
+    form{display:flex;flex-direction:column;gap:14px}
+    label{font-size:13px;color:var(--muted)}
+    input[type=text],input[type=password]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;font-size:15px}
+    .btn{background:linear-gradient(90deg,var(--accent),#06b6d4);border:0;padding:10px 16px;border-radius:10px;color:#fff;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.18)}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .link{font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer}
+    @media(max-width:900px){.wrap{grid-template-columns:1fr;max-width:420px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="brand">
+        <div class="logo">FC</div>
+        <div>
+          <h1>FastAPI Chat</h1>
+          <p>Create your account to start chatting instantly</p>
+        </div>
+      </div>
+      <h2>Join FastAPI Chat 🚀</h2>
+      <p class="lead">Register below to create your private chat account and start connecting with others securely.</p>
+    </div>
+
+    <div class="card">
+      <form id="registerForm" onsubmit="event.preventDefault(); registerUser();">
+        <div>
+          <label for="username">Username</label>
+          <input id="username" type="text" placeholder="Choose a username" required />
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Create a password" required />
+        </div>
+        <button id="registerBtn" class="btn" type="submit">Register</button>
+        <p style="font-size:13px;color:var(--muted);margin-top:12px;text-align:center">Already have an account? <a href="/login" class="link">Sign in</a></p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const registerBtn=document.getElementById('registerBtn');
+    async function registerUser(){
+      registerBtn.disabled=true;registerBtn.innerText='Registering...';
+      const username=document.getElementById('username').value.trim();
+      const password=document.getElementById('password').value;
+      if(!username||!password){alert('Please fill all fields');registerBtn.disabled=false;registerBtn.innerText='Register';return;}
+      try{
+        const res=await fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+        if(res.ok){alert('Registered successfully!');window.location.href='/login';}
+        else{alert('Error registering user');}
+      }catch(err){console.error(err);alert('Network error');}
+      finally{registerBtn.disabled=false;registerBtn.innerText='Register';}
+    }
+  </script>
+</body>
+</html>

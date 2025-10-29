@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login — FastAPI Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1: #0f172a; /* dark blue */
+      --bg2: #0ea5a0; /* teal */
+      --card: rgba(255,255,255,0.06);
+      --glass: rgba(255,255,255,0.06);
+      --accent: #7c3aed;
+      --muted: rgba(255,255,255,0.75);
+      --radius: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial}
+
+    body{
+      display:flex;align-items:center;justify-content:center;
+      background: linear-gradient(135deg,var(--bg1) 0%, #081126 45%, #032f2e 100%);
+      color: #fff;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:32px;
+    }
+
+    .wrap{
+      width:100%;max-width:980px;display:grid;grid-template-columns:1fr 420px;gap:36px;align-items:center;
+    }
+
+    .hero{
+      padding:36px;border-radius:var(--radius);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    }
+
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+    .brand h1{margin:0;font-size:20px}
+    .brand p{margin:0;color:var(--muted);font-size:14px}
+
+    .hero h2{margin-top:20px;margin-bottom:8px;font-size:28px}
+    .hero p.lead{color:var(--muted);margin:0 0 18px 0}
+
+    .features{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+    .chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px;color:var(--muted)}
+
+    /* form card */
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border-radius:var(--radius);padding:28px;width:100%;box-shadow: 0 8px 30px rgba(2,6,23,0.5);
+    }
+
+    form{display:flex;flex-direction:column;gap:14px}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"],input[type="password"]{
+      width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;font-size:15px
+    }
+    .input-row{position:relative}
+    .toggle-pass{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px}
+
+    .actions{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+    .btn{
+      background: linear-gradient(90deg,var(--accent),#06b6d4);border:0;padding:10px 16px;border-radius:10px;color:#fff;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.18);
+    }
+    .btn:disabled{opacity:0.55;cursor:not-allowed}
+
+    .link{font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer}
+
+    .small{font-size:13px;color:var(--muted);text-align:center;margin-top:12px}
+
+    /* responsive */
+    @media (max-width:900px){
+      .wrap{grid-template-columns:1fr;max-width:420px}
+      .hero{order:2}
+    }
+
+    /* subtle animated gradient background accent */
+    .bg-accent{
+      position:relative;border-radius:16px;padding:12px;
+    }
+    .bg-accent:before{
+      content:'';position:absolute;inset:-2px;z-index:-1;border-radius:16px;background:linear-gradient(60deg, rgba(124,58,237,0.08), rgba(6,182,212,0.06));filter:blur(18px);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero bg-accent">
+      <div class="brand">
+        <div class="logo">FC</div>
+        <div>
+          <h1>FastAPI Chat</h1>
+          <p>Secure realtime messaging built with FastAPI & WebSockets</p>
+        </div>
+      </div>
+
+      <h2>Welcome back 👋</h2>
+      <p class="lead">Enter your credentials to continue to your private chat. Smooth, secure and lightning fast.</p>
+
+      <div class="features">
+        <div class="chip">Real-time WebSockets</div>
+        <div class="chip">JWT Authentication</div>
+        <div class="chip">Message history</div>
+      </div>
+
+      <p style="margin-top:22px;color:var(--muted);font-size:14px">Tip: Use the same username when opening the chat so WebSocket routing works correctly.</p>
+    </div>
+
+    <div class="card">
+      <form id="loginForm" onsubmit="event.preventDefault(); login();">
+        <div>
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="your username" autocomplete="username" required />
+        </div>
+
+        <div>
+          <label for="password">Password</label>
+          <div class="input-row">
+            <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+            <button type="button" class="toggle-pass" onclick="togglePassword()">Show</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <div style="display:flex;align-items:center;gap:10px">
+            <input id="remember" type="checkbox" />
+            <label for="remember" style="color:var(--muted);font-size:13px">Remember me</label>
+          </div>
+
+          <a class="link" href="/register">Create account</a>
+        </div>
+
+        <button id="submitBtn" class="btn" type="submit">Sign in</button>
+
+        <div class="small">By signing in you agree to the <strong>Terms</strong> and <strong>Privacy</strong>.</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const submitBtn = document.getElementById('submitBtn');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+
+    function togglePassword(){
+      const p = passwordInput;
+      if(p.type === 'password'){ p.type = 'text'; document.querySelector('.toggle-pass').innerText = 'Hide'; }
+      else { p.type = 'password'; document.querySelector('.toggle-pass').innerText = 'Show'; }
+    }
+
+    async function login(){
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Signing in...';
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if(!username || !password){
+        alert('Please fill out both fields');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Sign in';
+        return;
+      }
+
+      try{
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        if(res.ok){
+          const data = await res.json();
+          localStorage.setItem('token', data.access_token);
+          localStorage.setItem('user_id', data.id);
+          localStorage.setItem('username', username);
+          if(document.getElementById('remember').checked){
+            // optionally persist other user prefs
+          }
+          window.location.href = '/chat';
+        } else if(res.status === 401){
+          alert('Invalid credentials — please check username & password');
+        } else {
+          const txt = await res.text();
+          console.error('Login failed', res.status, txt);
+          alert('Login failed. Try again later.');
+        }
+      }catch(err){
+        console.error(err);alert('Network error — check server');
+      }finally{
+        submitBtn.disabled = false;submitBtn.innerText = 'Sign in';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -27,9 +27,6 @@ def register_page(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    """
-    Render the Login Page
-    """
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -48,5 +45,4 @@ def chat_page(
 app.include_router(auth_routers.router, prefix="/auth", tags=["Auth"])
 app.include_router(chat_routers.router, prefix="/chat", tags=["Chat"])
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+

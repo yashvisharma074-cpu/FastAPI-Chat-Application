@@ -3,20 +3,16 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        # username → websocket
         self.active_connections: Dict[str, WebSocket] = {}
-        # username → currently open chat with whom
         self.active_chats: Dict[str, Optional[str]] = {}
 
     async def connect(self, username: str, websocket: WebSocket):
-        """Accept connection and store it by username"""
         await websocket.accept()
         self.active_connections[username] = websocket
-        self.active_chats[username] = None  # no chat open initially
+        self.active_chats[username] = None
         print(f"✅ {username} connected. Active users: {list(self.active_connections.keys())}")
 
     def disconnect(self, username: str):
-        """Remove user connection when disconnected"""
         if username in self.active_connections:
             del self.active_connections[username]
         if username in self.active_chats:
@@ -24,34 +20,50 @@ class ConnectionManager:
         print(f"❌ {username} disconnected.")
 
     async def set_active_chat(self, username: str, chatting_with: Optional[str]):
-        """Track which user someone is currently chatting with"""
         self.active_chats[username] = chatting_with
         print(f"💬 {username} is now chatting with {chatting_with}")
 
     async def send_personal_message(self, message: dict, sender: str, receiver: str):
-        """
-        Send message to both sender & receiver if connected.
-        If receiver not actively chatting with sender, send 'notification' type message.
-        """
-        receiver_ws = self.active_connections.get(receiver)
         sender_ws = self.active_connections.get(sender)
+        receiver_ws = self.active_connections.get(receiver)
 
-        # Always send message to sender (so they see it instantly)
         if sender_ws:
             await sender_ws.send_json(message)
 
         if receiver_ws:
-            # Send message to receiver
-            await receiver_ws.send_json(message)
-
-            # If receiver not chatting with sender → send notification
-            if self.active_chats.get(receiver) != sender:
+            current_chat = self.active_chats.get(receiver)
+            if current_chat == sender:
+                await receiver_ws.send_json(message)
+                print(f"📨 Message delivered from {sender} → {receiver}")
+            else:
                 notification = {
                     "type": "notification",
                     "from": sender,
-                    "message": "New message received!",
+                    "message": f"💬 New message from {sender}!",
                 }
                 await receiver_ws.send_json(notification)
+                print(f"🔔 {receiver} chatting with {current_chat} → sent notification from {sender}")
+        else:
+            print(f"⚠️ Receiver {receiver} is offline. Message saved in DB only.")
 
-# ✅ Single global instance
+    async def send_notification_if_not_active(self, receiver: str, message: dict):
+        """Send notification if receiver is not chatting with sender."""
+        receiver_ws = self.active_connections.get(receiver)
+        current_chat = self.active_chats.get(receiver)
+
+        if receiver_ws and current_chat != message.get("sender"):
+            notification = {
+                "type": "notification",
+                "from": message["sender"],
+                "message": f"💬 New message from {message['sender']}!"
+            }
+            await receiver_ws.send_json(notification)
+            print(f"🔔 Notification sent to {receiver}")
+
+    async def broadcast_user_list(self):
+        user_list = list(self.active_connections.keys())
+        for ws in self.active_connections.values():
+            await ws.send_json({"type": "user_list", "users": user_list})
+
+
 manager = ConnectionManager()

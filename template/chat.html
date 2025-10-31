@@ -32,10 +32,23 @@
       border-radius: 5px;
       cursor: pointer;
       transition: 0.2s;
+      position: relative;
     }
 
     #user-list button:hover {
       background: #0056b3;
+    }
+
+    /* 🔔 Notification badge style */
+    .badge {
+      position: absolute;
+      top: 6px;
+      right: 12px;
+      background: red;
+      color: white;
+      border-radius: 50%;
+      padding: 2px 6px;
+      font-size: 12px;
     }
 
     #chat-container {
@@ -123,10 +136,10 @@
 
   <script>
     let ws;
-    let currentUser = localStorage.getItem("username");
+    let currentUser = localStorage.getItem("username") || prompt("Enter your username:");
     let selectedUser = null;
-
-    document.getElementById("username-display").innerText = currentUser || "Guest";
+    document.getElementById("username-display").innerText = currentUser;
+    localStorage.setItem("username", currentUser);
 
     async function loadUsers() {
       const res = await fetch("http://127.0.0.1:8000/auth/users");
@@ -136,11 +149,11 @@
       listDiv.innerHTML = "<h4>Users:</h4>";
 
       users.forEach(u => {
-        // Adjust if your backend returns user objects
         const username = u.username || u;
         if (username !== currentUser) {
           const btn = document.createElement("button");
           btn.textContent = username;
+          btn.dataset.user = username;
           btn.onclick = () => startChat(username);
           listDiv.appendChild(btn);
         }
@@ -152,20 +165,49 @@
       document.getElementById("chat-header").innerText = `Chat with ${user}`;
       document.getElementById("chat-box").innerHTML = "";
 
+      const btn = document.querySelector(`button[data-user='${user}']`);
+      if (btn) {
+        const badge = btn.querySelector(".badge");
+        if (badge) badge.remove();
+      }
+
       if (ws && ws.readyState === WebSocket.OPEN) ws.close();
 
       const res = await fetch(`http://127.0.0.1:8000/chat/messages/${currentUser}/${selectedUser}`);
       const history = await res.json();
       history.forEach(m => showMessage(m.sender, m.message));
 
+
       ws = new WebSocket(`ws://127.0.0.1:8000/chat/ws/${currentUser}/${selectedUser}`);
 
       ws.onopen = () => console.log("✅ Connected to chat with", selectedUser);
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
+
+        if (data.type === "notification") {
+          const senderName = data.from;
+          if (senderName !== selectedUser) {
+            const userButton = document.querySelector(`button[data-user='${senderName}']`);
+            if (userButton) {
+              let badge = userButton.querySelector(".badge");
+              if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "badge";
+                badge.textContent = "1";
+                userButton.appendChild(badge);
+              } else {
+                badge.textContent = parseInt(badge.textContent) + 1;
+              }
+            }
+          }
+          return;
+        }
+
         showMessage(data.sender, data.message);
       };
-      ws.onclose = () => console.log("❌ Disconnected");
+
+      ws.onclose = () => console.log("❌ Disconnected from chat");
     }
 
     function sendMessage() {

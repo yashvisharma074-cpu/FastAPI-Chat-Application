@@ -42,7 +42,6 @@ def login(user: dict, db: Session = Depends(get_db)):
     )
     return response
 
-
 @router.get("/users")
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()

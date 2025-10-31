@@ -1,20 +1,20 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
+from datetime import datetime
 from core.database import get_db
 from model.chat_model import ChatMessageModel
 from model.auth_model import User
-from datetime import datetime
-from utils.websocket_manager import manager  
+from utils.websocket_manager import manager
 
 router = APIRouter()
+
 
 @router.websocket("/ws/{sender}/{receiver}")
 async def chat_websocket(websocket: WebSocket, sender: str, receiver: str, db: Session = Depends(get_db)):
     """
-    Handle a live WebSocket chat connection between two users.
+    WebSocket endpoint for chatting between two users (sender ↔ receiver)
     """
     await manager.connect(sender, websocket)
-    # Mark this chat as active
     await manager.set_active_chat(sender, receiver)
 
     try:
@@ -22,14 +22,14 @@ async def chat_websocket(websocket: WebSocket, sender: str, receiver: str, db: S
             data = await websocket.receive_json()
             message_text = data.get("message")
 
-            # Validate sender and receiver
+            # Fetch sender and receiver from DB
             sender_user = db.query(User).filter(User.username == sender).first()
             receiver_user = db.query(User).filter(User.username == receiver).first()
 
             if not sender_user or not receiver_user:
                 continue
 
-            # Save message to DB
+            # Save message in DB
             new_message = ChatMessageModel(
                 sender_id=sender_user.id,
                 receiver_id=receiver_user.id,
@@ -39,7 +39,7 @@ async def chat_websocket(websocket: WebSocket, sender: str, receiver: str, db: S
             db.add(new_message)
             db.commit()
 
-            # Prepare message data
+            # Prepare message payload
             message_data = {
                 "type": "chat",
                 "sender": sender,
@@ -52,16 +52,33 @@ async def chat_websocket(websocket: WebSocket, sender: str, receiver: str, db: S
             await manager.send_personal_message(message_data, sender, receiver)
 
     except WebSocketDisconnect:
-        # Mark user as disconnected
         manager.disconnect(sender)
+        await manager.set_active_chat(sender, None)
         print(f"❌ {sender} disconnected from chat with {receiver}")
 
+
+@router.websocket("/ws/notify/{username}")
+async def notify_websocket(websocket: WebSocket, username: str):
+    """
+    Global WebSocket connection for user notifications
+    (when user is online but not in a specific chat)
+    """
+    await manager.connect(username, websocket)
+    await manager.set_active_chat(username, None)
+
+    try:
+        while True:
+            await websocket.receive_text()  # Keep connection alive
+    except WebSocketDisconnect:
+        manager.disconnect(username)
+        await manager.set_active_chat(username, None)
+        print(f"🔕 {username} notification socket disconnected.")
 
 
 @router.get("/messages/{sender}/{receiver}")
 def get_chat_history(sender: str, receiver: str, db: Session = Depends(get_db)):
     """
-    Fetch all chat history between two users.
+    Fetch complete chat history between two users.
     """
     sender_user = db.query(User).filter(User.username == sender).first()
     receiver_user = db.query(User).filter(User.username == receiver).first()
@@ -69,7 +86,6 @@ def get_chat_history(sender: str, receiver: str, db: Session = Depends(get_db)):
     if not sender_user or not receiver_user:
         return []
 
-    # Fetch messages in both directions
     messages = (
         db.query(ChatMessageModel)
         .filter(
@@ -81,6 +97,11 @@ def get_chat_history(sender: str, receiver: str, db: Session = Depends(get_db)):
     )
 
     return [
-        {"sender": m.sender.username, "message": m.content, "timestamp": m.timestamp}
+        {
+            "sender": m.sender.username,
+            "receiver": m.receiver.username,
+            "message": m.content,
+            "timestamp": m.timestamp,
+        }
         for m in messages
     ]

@@ -42,7 +42,7 @@ class ConnectionManager:
         try:
             sender_ws_list = self.active_connections.get(sender, [])
             receiver_ws_list = self.active_connections.get(receiver, [])
-
+            
             for ws in sender_ws_list + receiver_ws_list:
                 if ws.application_state.name != "DISCONNECTED":
                     await ws.send_json(message)

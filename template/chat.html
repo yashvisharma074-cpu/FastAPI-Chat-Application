@@ -5,13 +5,15 @@
   <title>Private Chat</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
-      background: #f2f2f2;
+      background: #ece5dd;
       display: flex;
       height: 100vh;
+      overflow: hidden;
     }
 
+    /* Sidebar */
     #sidebar {
       width: 25%;
       background: #fff;
@@ -22,24 +24,30 @@
       overflow-y: auto;
     }
 
+    #sidebar h3 {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #075e54;
+    }
+
     #user-list button {
       width: 100%;
-      padding: 10px;
-      margin: 5px 0;
+      padding: 12px;
+      margin: 6px 0;
       border: none;
-      background: #007bff;
+      background: #25d366;
       color: white;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: 0.2s;
+      font-size: 15px;
       position: relative;
+      transition: background 0.2s;
     }
 
     #user-list button:hover {
-      background: #0056b3;
+      background: #128c7e;
     }
 
-    /* 🔔 Notification badge style */
     .badge {
       position: absolute;
       top: 6px;
@@ -47,23 +55,27 @@
       background: red;
       color: white;
       border-radius: 50%;
-      padding: 2px 6px;
+      padding: 3px 7px;
       font-size: 12px;
     }
 
+    /* Chat container */
     #chat-container {
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: #e9ecef;
+      background: #efeae2;
     }
 
     #chat-header {
-      background: #007bff;
+      background: #075e54;
       color: white;
       padding: 15px;
-      text-align: center;
       font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
     }
 
     #chat-box {
@@ -72,51 +84,145 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      background-image: url('https://i.imgur.com/oBzT1Kx.png');
+      background-size: cover;
     }
 
     .message {
-      margin: 8px 0;
-      padding: 10px 15px;
-      border-radius: 12px;
       max-width: 70%;
+      margin: 6px 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: inline-block;
       word-wrap: break-word;
+      position: relative;
+      animation: fadeIn 0.2s ease-in;
     }
 
     .sent {
       align-self: flex-end;
-      background: #007bff;
-      color: white;
+      background: #dcf8c6;
     }
 
     .received {
       align-self: flex-start;
-      background: #d6d8db;
-      color: #333;
+      background: white;
     }
 
+    .message img {
+      max-width: 220px;
+      border-radius: 8px;
+      display: block;
+      margin-top: 5px;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    .message img:hover {
+      opacity: 0.8;
+    }
+
+    .timestamp {
+      font-size: 10px;
+      color: gray;
+      position: absolute;
+      bottom: 2px;
+      right: 6px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Input area */
     #input-area {
       display: flex;
-      border-top: 1px solid #ccc;
-      background: white;
+      align-items: center;
       padding: 10px;
+      background: #f0f0f0;
+      border-top: 1px solid #ccc;
     }
 
     #messageInput {
       flex: 1;
-      padding: 10px;
+      padding: 10px 12px;
       border: 1px solid #ccc;
-      border-radius: 8px;
+      border-radius: 20px;
+      outline: none;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    #uploadLabel {
+      margin-left: 8px;
+      cursor: pointer;
+      background: #25d366;
+      color: white;
+      padding: 10px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.3s;
+    }
+
+    #uploadLabel:hover {
+      background: #128c7e;
     }
 
     #sendBtn {
       margin-left: 10px;
-      padding: 10px 20px;
-      background: #007bff;
+      padding: 10px 16px;
+      background: #128c7e;
       border: none;
       color: white;
-      border-radius: 8px;
+      border-radius: 50%;
       cursor: pointer;
+      transition: 0.3s;
+      font-size: 16px;
     }
+
+    #sendBtn:hover {
+      background: #075e54;
+    }
+
+    /* Fullscreen image viewer */
+    #image-viewer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      flex-direction: column;
+    }
+
+    #image-viewer img {
+      max-width: 90%;
+      max-height: 85%;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    }
+
+    #close-viewer {
+      color: white;
+      font-size: 30px;
+      position: absolute;
+      top: 20px;
+      right: 40px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 5px 15px;
+      border-radius: 50%;
+    }
+
   </style>
 </head>
 <body>
@@ -128,10 +234,19 @@
   <div id="chat-container">
     <div id="chat-header">Select a user to chat</div>
     <div id="chat-box"></div>
+
     <div id="input-area">
-      <input id="messageInput" type="text" placeholder="Type your message..." />
-      <button id="sendBtn" onclick="sendMessage()">Send</button>
+      <input id="messageInput" type="text" placeholder="Type a message..." />
+      <input type="file" id="fileInput" accept="image/*" onchange="uploadImage(event)" />
+      <label id="uploadLabel" for="fileInput">📷</label>
+      <button id="sendBtn" onclick="sendMessage()">➤</button>
     </div>
+  </div>
+
+  <!-- Fullscreen image viewer -->
+  <div id="image-viewer" onclick="closeImageViewer(event)">
+    <span id="close-viewer">&times;</span>
+    <img id="viewer-img" src="" alt="Preview">
   </div>
 
   <script>
@@ -144,7 +259,6 @@
     async function loadUsers() {
       const res = await fetch("http://127.0.0.1:8000/auth/users");
       const users = await res.json();
-
       const listDiv = document.getElementById("user-list");
       listDiv.innerHTML = "<h4>Users:</h4>";
 
@@ -165,18 +279,22 @@
       document.getElementById("chat-header").innerText = `Chat with ${user}`;
       document.getElementById("chat-box").innerHTML = "";
 
+      // Clear badge
       const btn = document.querySelector(`button[data-user='${user}']`);
       if (btn) {
         const badge = btn.querySelector(".badge");
         if (badge) badge.remove();
       }
 
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
 
+      // Load chat history
       const res = await fetch(`http://127.0.0.1:8000/chat/messages/${currentUser}/${selectedUser}`);
       const history = await res.json();
-      history.forEach(m => showMessage(m.sender, m.message));
-
+      history.forEach(m => showMessage(m.sender, m.message, m.content_type, m.timestamp));
 
       ws = new WebSocket(`ws://127.0.0.1:8000/chat/ws/${currentUser}/${selectedUser}`);
 
@@ -186,25 +304,19 @@
         const data = JSON.parse(event.data);
 
         if (data.type === "notification") {
-          const senderName = data.from;
-          if (senderName !== selectedUser) {
-            const userButton = document.querySelector(`button[data-user='${senderName}']`);
-            if (userButton) {
-              let badge = userButton.querySelector(".badge");
-              if (!badge) {
-                badge = document.createElement("span");
-                badge.className = "badge";
-                badge.textContent = "1";
-                userButton.appendChild(badge);
-              } else {
-                badge.textContent = parseInt(badge.textContent) + 1;
-              }
-            }
+          const btn = document.querySelector(`button[data-user='${data.from}']`);
+          if (btn && !btn.querySelector(".badge")) {
+            const badge = document.createElement("span");
+            badge.classList.add("badge");
+            badge.innerText = "1";
+            btn.appendChild(badge);
           }
           return;
         }
 
-        showMessage(data.sender, data.message);
+        if ((data.sender === selectedUser && data.receiver === currentUser) || (data.sender === currentUser && data.receiver === selectedUser)) {
+          showMessage(data.sender, data.message, data.content_type, data.timestamp);
+        }
       };
 
       ws.onclose = () => console.log("❌ Disconnected from chat");
@@ -218,20 +330,63 @@
       ws.send(JSON.stringify({
         sender: currentUser,
         receiver: selectedUser,
-        message: msg
+        message: msg,
+        content_type: "text"
       }));
 
       input.value = "";
     }
 
-    function showMessage(sender, msg) {
+    async function uploadImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("http://127.0.0.1:8000/chat/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        ws.send(JSON.stringify({
+          sender: currentUser,
+          receiver: selectedUser,
+          message: data.url,
+          content_type: "image"
+        }));
+      }
+    }
+
+    function showMessage(sender, msg, type = "text", time = "") {
       const chatBox = document.getElementById("chat-box");
       const div = document.createElement("div");
-      div.classList.add("message");
-      div.classList.add(sender === currentUser ? "sent" : "received");
-      div.textContent = `${sender}: ${msg}`;
+      div.classList.add("message", sender === currentUser ? "sent" : "received");
+
+      const displayTime = time ? new Date(time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : "";
+
+      if (type === "image") {
+        div.innerHTML = `<b>${sender}:</b><br><img src="${msg}" alt="Image" onclick="openImageViewer('${msg}')"><div class="timestamp">${displayTime}</div>`;
+      } else {
+        div.innerHTML = `<b>${sender}:</b> ${msg}<div class="timestamp">${displayTime}</div>`;
+      }
+
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function openImageViewer(url) {
+      document.getElementById("viewer-img").src = url;
+      document.getElementById("image-viewer").style.display = "flex";
+    }
+
+    function closeImageViewer(e) {
+      if (e.target.id === "image-viewer" || e.target.id === "close-viewer") {
+        document.getElementById("image-viewer").style.display = "none";
+        document.getElementById("viewer-img").src = "";
+      }
     }
 
     window.addEventListener("DOMContentLoaded", loadUsers);

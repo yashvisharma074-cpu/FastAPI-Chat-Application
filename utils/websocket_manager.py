@@ -1,69 +1,89 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from fastapi import WebSocket
+from asyncio import Lock
+
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
+        self.active_connections: Dict[str, List[WebSocket]] = {}
         self.active_chats: Dict[str, Optional[str]] = {}
+        self.lock = Lock()
+
 
     async def connect(self, username: str, websocket: WebSocket):
+        """Register new websocket connection for a user"""
         await websocket.accept()
-        self.active_connections[username] = websocket
-        self.active_chats[username] = None
-        print(f"✅ {username} connected. Active users: {list(self.active_connections.keys())}")
+        async with self.lock:
+            self.active_connections.setdefault(username, []).append(websocket)
+            self.active_chats.setdefault(username, None)
+        print(f"✅ {username} connected ({len(self.active_connections[username])} tabs)")
 
-    def disconnect(self, username: str):
-        if username in self.active_connections:
-            del self.active_connections[username]
-        if username in self.active_chats:
-            del self.active_chats[username]
-        print(f"❌ {username} disconnected.")
+    async def disconnect(self, username: str, websocket: WebSocket):
+        """Remove websocket connection on disconnect"""
+        async with self.lock:
+            if username in self.active_connections:
+                if websocket in self.active_connections[username]:
+                    self.active_connections[username].remove(websocket)
+                    print(f"❌ {username} disconnected one socket.")
+                if not self.active_connections[username]:
+                    del self.active_connections[username]
+                    self.active_chats.pop(username, None)
+                    print(f"🧹 {username} fully offline.")
+        print(f"👥 Active users: {list(self.active_connections.keys())}")
 
     async def set_active_chat(self, username: str, chatting_with: Optional[str]):
+        """Track who a user is currently chatting with"""
         self.active_chats[username] = chatting_with
         print(f"💬 {username} is now chatting with {chatting_with}")
 
+ 
     async def send_personal_message(self, message: dict, sender: str, receiver: str):
-        sender_ws = self.active_connections.get(sender)
-        receiver_ws = self.active_connections.get(receiver)
+        """Send message only between sender and receiver"""
+        try:
+            sender_ws_list = self.active_connections.get(sender, [])
+            receiver_ws_list = self.active_connections.get(receiver, [])
 
-        if sender_ws:
-            await sender_ws.send_json(message)
+            for ws in sender_ws_list + receiver_ws_list:
+                if ws.application_state.name != "DISCONNECTED":
+                    await ws.send_json(message)
 
-        if receiver_ws:
-            current_chat = self.active_chats.get(receiver)
-            if current_chat == sender:
-                await receiver_ws.send_json(message)
-                print(f"📨 Message delivered from {sender} → {receiver}")
-            else:
-                notification = {
-                    "type": "notification",
-                    "from": sender,
-                    "message": f"💬 New message from {sender}!",
-                }
-                await receiver_ws.send_json(notification)
-                print(f"🔔 {receiver} chatting with {current_chat} → sent notification from {sender}")
-        else:
-            print(f"⚠️ Receiver {receiver} is offline. Message saved in DB only.")
+        except Exception as e:
+            print(f"⚠️ Error sending message {sender} → {receiver}: {e}")
+
 
     async def send_notification_if_not_active(self, receiver: str, message: dict):
-        """Send notification if receiver is not chatting with sender."""
-        receiver_ws = self.active_connections.get(receiver)
+        """Send notification only if receiver is not chatting with sender"""
+        receiver_conns = self.active_connections.get(receiver, [])
         current_chat = self.active_chats.get(receiver)
 
-        if receiver_ws and current_chat != message.get("sender"):
+        if receiver_conns and current_chat != message.get("sender"):
             notification = {
                 "type": "notification",
                 "from": message["sender"],
-                "message": f"💬 New message from {message['sender']}!"
+                "message": f"💬 New message from {message['sender']}"
             }
-            await receiver_ws.send_json(notification)
+            for ws in receiver_conns:
+                try:
+                    if ws.application_state.name != "DISCONNECTED":
+                        await ws.send_json(notification)
+                except:
+                    pass
             print(f"🔔 Notification sent to {receiver}")
 
     async def broadcast_user_list(self):
+        """Send list of all active users to everyone"""
         user_list = list(self.active_connections.keys())
-        for ws in self.active_connections.values():
-            await ws.send_json({"type": "user_list", "users": user_list})
+        payload = {"type": "user_list", "users": user_list}
+
+        for user, sockets in self.active_connections.items():
+            for ws in sockets:
+                try:
+                    if ws.application_state.name != "DISCONNECTED":
+                        await ws.send_json(payload)
+                except:
+                    pass
+        print("📢 Broadcasted updated user list.")
 
 
+# Singleton instance
 manager = ConnectionManager()
